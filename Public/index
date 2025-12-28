@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VIP User Panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{margin:0;font-family:Arial;background:#050b1f;color:#fff}
+.card{
+ max-width:380px;
+ margin:20px auto;
+ padding:25px;
+ border-radius:16px;
+ background:#0a1332;
+ box-shadow:0 10px 30px #000;
+ text-align:center
+}
+input,button{
+ width:100%;
+ padding:12px;
+ margin:6px 0;
+ border-radius:10px;
+ border:none;
+}
+button{
+ background:#2de2e6;
+ font-weight:bold;
+ cursor:pointer;
+}
+.pred{font-size:28px;margin:10px 0;font-weight:bold}
+.big{color:#00ff9c}
+.small{color:#ff6b6b}
+.red{color:#ff4d4d}
+.green{color:#00ff00}
+.hidden{display:none}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="card" id="loginBox">
+<h3>🔐 Enter VIP Key</h3>
+<input id="vipKey" placeholder="VIP Key">
+<button onclick="verifyKey()">Unlock</button>
+<div id="msg"></div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="card hidden" id="dash">
+<h3>🤖 WINGO AI</h3>
+<div id="timer">Next: --s</div>
+<div id="size" class="pred">--</div>
+<div id="color" class="pred">--</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-app.js";
+import { getDatabase, ref, get, update, set } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-database.js";
+
+const firebaseConfig = {
+ apiKey:"AIzaSyA-mV7LjwTOvHqZ8Ybai0_h0qTOUKxDqL4",
+ authDomain:"fxfsam-9e1c5.firebaseapp.com",
+ databaseURL:"https://fxfsam-9e1c5-default-rtdb.firebaseio.com",
+ projectId:"fxfsam-9e1c5"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const deviceId = btoa(navigator.userAgent + screen.width + screen.height);
+let vipData=null;
+
+/* VERIFY VIP KEY */
+window.verifyKey = async ()=>{
+ const key = vipKey.value.trim();
+ if(!key) return msg.textContent="Enter VIP Key";
+
+ const snap = await get(ref(db,"vipKeys/"+key));
+ if(!snap.exists()) return msg.textContent="Invalid VIP Key";
+
+ vipData = snap.val();
+
+ if(Date.now()>vipData.expiresAt)
+   return msg.textContent="VIP Key expired";
+
+ const devices = vipData.devices||{};
+ if(!devices[deviceId]){
+   if(vipData.usedDevices >= vipData.deviceLimit)
+     return msg.textContent="Device limit reached";
+
+   devices[deviceId]=true;
+   await update(ref(db,"vipKeys/"+key),{
+     devices,
+     usedDevices:(vipData.usedDevices||0)+1
+   });
+ }
+
+ loginBox.classList.add("hidden");
+ dash.classList.remove("hidden");
+ startPrediction();
+};
+
+/* SIMPLE AI */
+function predict(){
+ const s = Math.random()>0.5?"BIG":"SMALL";
+ const c = Math.random()>0.5?"RED":"GREEN";
+ size.textContent=s;
+ color.textContent=c;
+ size.className="pred "+s.toLowerCase();
+ color.className="pred "+c.toLowerCase();
+}
+
+/* 30s SYNC */
+function startPrediction(){
+ setInterval(()=>{
+   const sec=new Date().getSeconds();
+   timer.textContent="Next: "+(30-sec%30)+"s";
+   if(sec%30===0) predict();
+ },1000);
+}
+</script>
+</body>
+</html>
